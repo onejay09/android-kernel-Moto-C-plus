@@ -53,7 +53,9 @@
 #include <linux/oom.h>
 #include <linux/writeback.h>
 #include <linux/shm.h>
-
+#ifdef CONFIG_MTPROF
+#include "mt_cputime.h"
+#endif
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/pgtable.h>
@@ -295,6 +297,13 @@ kill_orphaned_pgrp(struct task_struct *tsk, struct task_struct *parent)
 {
 	struct pid *pgrp = task_pgrp(tsk);
 	struct task_struct *ignored_task = tsk;
+   //add chenshu@wind-mobi.com 2017.07.24 start
+   //fix PANELL-2599 sometime system restart
+   //mtk71029 add to avoid zygote orphaned process group start
+   struct task_struct *pgtask = get_pid_task(pgrp, PIDTYPE_PID);
+   int avoid_zygote = 0;
+   //mtk71029 add end.
+   //add chenshu@wind-mobi.com 2017.07.24 end
 
 	if (!parent)
 		/* exit: our father is in a different pgrp than
@@ -306,8 +315,25 @@ kill_orphaned_pgrp(struct task_struct *tsk, struct task_struct *parent)
 		 * we are, and it was the only connection outside.
 		 */
 		ignored_task = NULL;
+    //add chenshu@wind-mobi.com 2017.07.24 start
+    //fix PANELL-2599 sometime system restart
+    //mtk71029 add to avoid zygote orphaned process group
+    if (pgtask != NULL){
+        if (!strncmp("main", pgtask->group_leader->comm, TASK_COMM_LEN)){
+            avoid_zygote = 1;
+        }
+        put_task_struct(pgtask);
+    }
+    //mtk71029 add end
+    //add chenshu@wind-mobi.com 2017.07.24 end
 
-	if (task_pgrp(parent) != pgrp &&
+    //modify chenshu@wind-mobi.com 2017.07.24 start
+    //fix PANELL-2599 sometime system restart
+    //mtk71029 update to avoid zygote orphaned process group
+	//if (task_pgrp(parent) != pgrp &&
+    if (!avoid_zygote &&
+        task_pgrp(parent) != pgrp &&
+    //modify chenshu@wind-mobi.com 2017.07.24 end
 	    task_session(parent) == task_session(tsk) &&
 	    will_become_orphaned_pgrp(pgrp, ignored_task) &&
 	    has_stopped_jobs(pgrp)) {
@@ -671,7 +697,12 @@ void do_exit(long code)
 	TASKS_RCU(int tasks_rcu_i);
 
 	profile_task_exit(tsk);
-
+#ifdef CONFIG_MTPROF
+#ifdef CONFIG_MTPROF_CPUTIME
+	/* mt shceduler profiling*/
+	end_mtproc_info(tsk);
+#endif
+#endif
 	WARN_ON(blk_needs_flush_plug(tsk));
 
 	if (unlikely(in_interrupt()))

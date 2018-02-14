@@ -276,16 +276,23 @@ static int mmc_dbg_card_status_get(void *data, u64 *val)
 }
 DEFINE_SIMPLE_ATTRIBUTE(mmc_dbg_card_status_fops, mmc_dbg_card_status_get,
 		NULL, "%08llx\n");
-
-#define EXT_CSD_STR_LEN 1025
-
+//sunjingtao@wind-mobi.com modify for read firmware version at 20170122 beign
+#define EXT_CSD_STR_LEN 3   //1025
+#define NO_REMOVE_OLD		0
+//sunjingtao@wind-mobi.com modify for read firmware version at 20170122 end
 static int mmc_ext_csd_open(struct inode *inode, struct file *filp)
 {
 	struct mmc_card *card = inode->i_private;
 	char *buf;
+	int err;
+//sunjingtao@wind-mobi.com modify for read firmware version at 20170122 beign
+#if NO_REMOVE_OLD
 	ssize_t n = 0;
+	int i;
+#endif
+//sunjingtao@wind-mobi.com modify for read firmware version at 20170122 end
 	u8 *ext_csd;
-	int err, i;
+	__u64 fwrev;    //sunjingtao@wind-mobi.com modify at 20170122
 
 	buf = kmalloc(EXT_CSD_STR_LEN + 1, GFP_KERNEL);
 	if (!buf)
@@ -302,12 +309,19 @@ static int mmc_ext_csd_open(struct inode *inode, struct file *filp)
 	mmc_put_card(card);
 	if (err)
 		goto out_free;
-
+//sunjingtao@wind-mobi.com modify for read firmware version at 20170122 beign
+	fwrev= ((__u64)ext_csd[261])<<56 | ((__u64)ext_csd[260])<<48
+                | ((__u64)ext_csd[259])<<40 | ((__u64)ext_csd[258])<<32
+                | ((__u64)ext_csd[257])<<24 | ((__u64)ext_csd[256])<<16
+                | ((__u64)ext_csd[255])<<8 | ext_csd[254];
+	sprintf(buf,"%02x\n",(unsigned int)fwrev);
+	#if NO_REMOVE_OLD
 	for (i = 0; i < 512; i++)
 		n += sprintf(buf + n, "%02x", ext_csd[i]);
 	n += sprintf(buf + n, "\n");
 	BUG_ON(n != EXT_CSD_STR_LEN);
-
+	#endif
+//sunjingtao@wind-mobi.com modify for read firmware version at 20170122 end
 	filp->private_data = buf;
 	kfree(ext_csd);
 	return 0;
@@ -340,6 +354,96 @@ static const struct file_operations mmc_dbg_ext_csd_fops = {
 	.llseek		= default_llseek,
 };
 
+#ifdef MTK_BKOPS_IDLE_MAYA
+static int mmc_bkops_stats_open(struct inode *inode, struct file *filp)
+{
+	struct mmc_card *card = inode->i_private;
+
+	filp->private_data = card;
+
+	card->bkops_info.bkops_stats.print_stats = 1;
+	return 0;
+}
+
+static ssize_t mmc_bkops_stats_read(struct file *filp, char __user *ubuf,
+	size_t cnt, loff_t *ppos)
+{
+	struct mmc_card *card = filp->private_data;
+	struct mmc_bkops_stats *bkops_stats;
+	int i, ret;
+	unsigned long page = get_zeroed_page(GFP_KERNEL);
+	char *temp_buf = (char *) page;
+
+	if (!card)
+		return cnt;
+
+	bkops_stats = &card->bkops_info.bkops_stats;
+	if (!bkops_stats->print_stats)
+		return 0;
+
+	if (!bkops_stats->enabled) {
+		pr_err("%s: bkops statistics are disabled\n",
+			mmc_hostname(card->host));
+		goto exit;
+	}
+
+	spin_lock(&bkops_stats->lock);
+	temp_buf += sprintf(temp_buf, "%s: bkops statistics:\n", mmc_hostname(card->host));
+
+	for (i = 0; i < BKOPS_NUM_OF_SEVERITY_LEVELS; ++i) {
+		temp_buf += sprintf(temp_buf, "%s: BKOPS: due to level %d: %u\n",
+				mmc_hostname(card->host), i, bkops_stats->bkops_level[i]);
+	}
+	temp_buf += sprintf(temp_buf, "%s: BKOPS: stopped due to HPI: %u\n",
+				mmc_hostname(card->host), bkops_stats->hpi);
+	temp_buf += sprintf(temp_buf, "%s: BKOPS: how many time host was suspended: %u\n",
+				mmc_hostname(card->host), bkops_stats->suspend);
+	spin_unlock(&bkops_stats->lock);
+	ret = simple_read_from_buffer(ubuf, cnt, ppos, (char *) page, (unsigned long) temp_buf - page);
+	free_page(page);
+exit:
+	if (bkops_stats->print_stats == 1) {
+		bkops_stats->print_stats = 0;
+		return strnlen(ubuf, cnt);
+	}
+	return ret;
+}
+
+static ssize_t mmc_bkops_stats_write(struct file *filp,
+	const char __user *ubuf, size_t cnt, loff_t *ppos)
+{
+	struct mmc_card *card = filp->private_data;
+	char value;
+	struct mmc_bkops_stats *bkops_stats;
+	int cnt;
+
+	if (!card)
+		return cnt;
+
+	bkops_stats = &card->bkops_info.bkops_stats;
+
+	cnt = sscanf(ubuf, "%s", &value);
+	if (cnt != 1)
+		return -1;
+	if (value) {
+		mmc_blk_init_bkops_statistics(card);
+	} else {
+		pr_err("enter into mmc_bkops_stats_write else bkops_stats->enabled = false\n");
+		spin_lock(&bkops_stats->lock);
+		bkops_stats->enabled = false;
+		spin_unlock(&bkops_stats->lock);
+	}
+
+	return cnt;
+}
+
+static const struct file_operations mmc_dbg_bkops_stats_fops = {
+	.open = mmc_bkops_stats_open,
+	.read = mmc_bkops_stats_read,
+	.write = mmc_bkops_stats_write
+};
+#endif
+
 void mmc_add_card_debugfs(struct mmc_card *card)
 {
 	struct mmc_host	*host = card->host;
@@ -366,11 +470,19 @@ void mmc_add_card_debugfs(struct mmc_card *card)
 		if (!debugfs_create_file("status", S_IRUSR, root, card,
 					&mmc_dbg_card_status_fops))
 			goto err;
-
+//sunjingtao@wind-mobi.com modify for read firmware version at 20100122 beign
 	if (mmc_card_mmc(card))
-		if (!debugfs_create_file("ext_csd", S_IRUSR, root, card,
+		if (!debugfs_create_file("ext_csd", 0444, root, card,
 					&mmc_dbg_ext_csd_fops))
 			goto err;
+//sunjingtao@wind-mobi.com modify for read firmware version at 20170122 end
+#ifdef MTK_BKOPS_IDLE_MAYA
+	if (mmc_card_mmc(card) && (card->ext_csd.rev >= 5) &&
+		card->ext_csd.bkops_en)
+		if (!debugfs_create_file("bkops_stats", S_IRUSR, root, card,
+			&mmc_dbg_bkops_stats_fops))
+			goto err;
+#endif
 
 	return;
 
