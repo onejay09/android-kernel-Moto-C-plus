@@ -2589,23 +2589,6 @@ index cdc2250..d448437 100644
  	list_add_tail(&timeri->open_list, &timer->open_list_head);
  	snd_timer_check_master(timeri);
  	mutex_unlock(&register_mutex);
-@@ -305,8 +321,6 @@ int snd_timer_open(struct snd_timer_instance **ti,
- 	return 0;
- }
- 
--static int _snd_timer_stop(struct snd_timer_instance *timeri, int event);
--
- /*
-  * close a timer instance
-  */
-@@ -395,7 +409,6 @@ unsigned long snd_timer_resolution(struct snd_timer_instance *timeri)
- static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
- {
- 	struct snd_timer *timer;
--	unsigned long flags;
- 	unsigned long resolution = 0;
- 	struct snd_timer_instance *ts;
- 	struct timespec tstamp;
 @@ -419,34 +432,66 @@ static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
  		return;
  	if (timer->hw.flags & SNDRV_TIMER_HW_SLAVE)
