@@ -17,6 +17,8 @@ export ARCH=arm
 #export KBUILD_BUILD_USER="DhirajMS"
 #export KBUILD_BUILD_HOST="Dracarys"
 
+export CROSS_COMPILE=/home/ubuntu/kernel/panelli/toolchain/bin/arm-eabi-
+
 #Defconfig for Moto C plus
 #make -C $PWD O=$PWD/out ARCH=arm A158_defconfig
 
