@@ -59,6 +59,7 @@ extern int set_rtc_spare_fg_value(int val);
 extern void rtc_irq_handler(void);
 extern bool crystal_exist_status(void);
 extern void mt_power_off(void);
+extern void rtc_mark_reboot(void);
 #else/*ifdef CONFIG_MTK_RTC*/
 #define rtc_read_hw_time()              ({ 0; })
 #define rtc_gpio_enable_32k(user)	do {} while (0)
@@ -69,6 +70,7 @@ extern void mt_power_off(void);
 #define rtc_enable_writeif()		do {} while (0)
 #define rtc_disable_writeif()		do {} while (0)
 #define rtc_mark_recovery()             do {} while (0)
+#define rtc_mark_reboot()             do {} while (0)
 #if defined(CONFIG_MTK_KERNEL_POWER_OFF_CHARGING)
 #define rtc_mark_kpoc()                 do {} while (0)
 #endif/*if defined(CONFIG_MTK_KERNEL_POWER_OFF_CHARGING)*/
