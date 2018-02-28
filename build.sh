@@ -19,12 +19,12 @@ export ARCH=arm
 
 
 #get toolchain gcc-4.8
-#git clone https://github.com/DhirajSurvase/GCC_4.8 gcc4.8
-#export CROSS_COMPILE=/home/ubuntu/kcp/gcc4.8/bin/arm-eabi-
+git clone https://github.com/DhirajSurvase/GCC_4.8 gcc4.8
+export CROSS_COMPILE=/home/ubuntu/los/kernel/moto/panelli/gcc4.8/bin/arm-eabi-
 
 #get toolchain gcc-4.9
-git clone https://github.com/DhirajSurvase/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 gcc4.9
-export CROSS_COMPILE=/home/ubuntu/kcp/gcc4.9/bin/arm-linux-androideabi-
+#git clone https://github.com/DhirajSurvase/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 gcc4.9
+#export CROSS_COMPILE=/home/ubuntu/kcp/gcc4.9/bin/arm-linux-androideabi-
 
 
 #Defconfig for Moto C plus
