@@ -24,12 +24,12 @@ export ARCH=arm
 
 #get toolchain gcc-4.9
 git clone https://github.com/DhirajSurvase/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 gcc4.9
-export CROSS_COMPILE=/home/ubuntu/kcp/gcc4.9/bin/arm-linux-androideabi-
+export CROSS_COMPILE=/home/ubuntu/los/kernel/moto/panelli/gcc4.9/bin/arm-linux-androideabi-
 
 
 #Defconfig for Moto C plus
 #make -C $PWD O=$PWD/out ARCH=arm A158_defconfig
-make -C $PWD O=$PWD/out ARCH=arm A158_debug_defconfig
+make -C $PWD O=$PWD/out ARCH=arm panelli_defconfig
 
 
 #CompileNow
